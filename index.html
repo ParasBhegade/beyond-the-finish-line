@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore the relationship between finishing time and year for Tour de France cyclists."
+    />
+    <title>Beyond the Finish Line — Tour de France Doping</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #17231f;
+        background: #f3f5ef;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        padding: clamp(18px, 4vw, 52px);
+        background:
+          radial-gradient(ellipse at 85% 4%, rgb(226 236 211 / 75%), transparent 36rem),
+          #f3f5ef;
+      }
+
+      main {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+      }
+
+      .eyebrow {
+        margin: 0 0 9px;
+        color: #52705f;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.17em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2.2rem, 5vw, 4.3rem);
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        line-height: 1;
+      }
+
+      .intro {
+        max-width: 650px;
+        margin: 16px 0 30px;
+        color: #5d6862;
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      .chart-card {
+        overflow: hidden;
+        padding: clamp(12px, 2.4vw, 28px);
+        border: 1px solid #e1e6dc;
+        border-radius: 22px;
+        background: rgb(255 255 255 / 90%);
+        box-shadow: 0 22px 65px rgb(34 53 41 / 8%);
+      }
+
+      .chart-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 3px 4px 0;
+      }
+
+      .chart-heading h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+      }
+
+      .chart-heading p {
+        margin: 5px 0 0;
+        color: #78827b;
+        font-size: 0.8rem;
+      }
+
+      .chart-wrap {
+        position: relative;
+        width: 100%;
+        margin-top: 12px;
+      }
+
+      #chart {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+
+      .axis path,
+      .axis line {
+        stroke: #bdc7be;
+        shape-rendering: crispEdges;
+      }
+
+      .axis text {
+        fill: #737e76;
+        font-size: 11px;
+      }
+
+      .grid line {
+        stroke: #e9ede7;
+      }
+
+      .grid path {
+        display: none;
+      }
+
+      .axis-label {
+        fill: #48574e;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .dot {
+        stroke: #fff;
+        stroke-width: 1.5px;
+        cursor: crosshair;
+        transition: r 120ms ease, stroke-width 120ms ease;
+      }
+
+      .dot:hover,
+      .dot:focus {
+        r: 7px;
+        stroke: #17231f;
+        stroke-width: 2px;
+        outline: none;
+      }
+
+      .legend-panel {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 14px 26px;
+        padding: 4px 12px 12px;
+        color: #536057;
+        font-size: 0.78rem;
+      }
+
+      #legend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px 22px;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+      }
+
+      .note {
+        max-width: 760px;
+        margin: 17px auto 0;
+        color: #78827b;
+        font-size: 0.75rem;
+        line-height: 1.55;
+        text-align: center;
+      }
+
+      #tooltip {
+        position: fixed;
+        z-index: 5;
+        max-width: min(290px, calc(100vw - 24px));
+        padding: 12px 14px;
+        border: 1px solid rgb(255 255 255 / 16%);
+        border-radius: 11px;
+        background: #17231f;
+        box-shadow: 0 10px 28px rgb(20 30 24 / 22%);
+        color: #fff;
+        font-size: 0.78rem;
+        line-height: 1.5;
+        pointer-events: none;
+      }
+
+      #tooltip[hidden] {
+        display: none;
+      }
+
+      .tooltip-year {
+        color: #b7d77f;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      .tooltip-name {
+        margin: 2px 0;
+        font-size: 0.95rem;
+        font-weight: 750;
+      }
+
+      .tooltip-detail {
+        color: #d3dbd4;
+      }
+
+      @media (max-width: 600px) {
+        body {
+          padding: 24px 12px;
+        }
+
+        .chart-card {
+          padding: 12px 6px;
+          border-radius: 15px;
+        }
+
+        .chart-heading {
+          padding: 4px 9px 0;
+        }
+
+        .chart-heading p {
+          font-size: 0.7rem;
+        }
+
+        .axis text {
+          font-size: 9px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">The cost of the climb · 1994—2015</p>
+        <h1 id="title">Beyond the Finish Line</h1>
+        <p class="intro">
+          Winning times tell only part of the story. Each mark traces a Tour de France
+          winner’s finishing time—and the doping history that followed.
+        </p>
+      </header>
+
+      <section class="chart-card" aria-labelledby="chart-title">
+        <div class="chart-heading">
+          <div>
+            <h2 id="chart-title">Tour de France winning times</h2>
+            <p>Race time in minutes and seconds · one mark per winner</p>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <svg id="chart" role="img" aria-labelledby="title chart-title"></svg>
+        </div>
+        <div class="legend-panel">
+          <div id="legend" aria-label="Doping allegation legend">
+            <span class="legend-item"><span class="legend-dot" style="background:#739b56"></span>No doping allegation</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#d36b51"></span>Doping allegation</span>
+          </div>
+        </div>
+      </section>
+      <p class="note">
+        An allegation does not establish guilt. Data: freeCodeCamp Project Reference Data.
+        Hover or focus a mark to see rider details.
+      </p>
+    </main>
+
+    <div id="tooltip" role="tooltip" hidden></div>
+
+    <script>
+      const DATA_URL = "/api/cyclist-data";
+      const tooltip = d3.select("#tooltip");
+      const svg = d3.select("#chart");
+      const colors = {
+        clean: "#739b56",
+        allegation: "#d36b51",
+      };
+
+      function renderChart(data) {
+        const width = 900;
+        const height = 510;
+        const margin = { top: 24, right: 28, bottom: 66, left: 76 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+
+        svg.attr("viewBox", `0 0 ${width} ${height}`).attr("preserveAspectRatio", "xMidYMid meet");
+
+        const plot = svg
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+        const x = d3
+          .scaleLinear()
+          .domain(d3.extent(data, (d) => d.Year))
+          .range([0, innerWidth]);
+        const y = d3
+          .scaleUtc()
+          .domain(d3.extent(data, (d) => d.raceTime))
+          .range([0, innerHeight]);
+
+        plot
+          .append("g")
+          .attr("class", "grid")
+          .call(d3.axisLeft(y).ticks(8).tickSize(-innerWidth).tickFormat(""));
+
+        const xAxis = plot
+          .append("g")
+          .attr("id", "x-axis")
+          .attr("class", "axis")
+          .attr("transform", `translate(0,${innerHeight})`)
+          .call(d3.axisBottom(x).tickFormat(d3.format("d")).ticks(22));
+        const yAxis = plot
+          .append("g")
+          .attr("id", "y-axis")
+          .attr("class", "axis")
+          .call(d3.axisLeft(y).ticks(8).tickFormat(d3.utcFormat("%M:%S")));
+
+        xAxis
+          .append("text")
+          .attr("class", "axis-label")
+          .attr("x", innerWidth / 2)
+          .attr("y", 48)
+          .attr("text-anchor", "middle")
+          .text("Year");
+        yAxis
+          .append("text")
+          .attr("class", "axis-label")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -innerHeight / 2)
+          .attr("y", -55)
+          .attr("text-anchor", "middle")
+          .text("Winning time (mm:ss)");
+
+        plot
+          .selectAll(".dot")
+          .data(data)
+          .join("circle")
+          .attr("class", "dot")
+          .attr("cx", (d) => x(d.Year))
+          .attr("cy", (d) => y(d.raceTime))
+          .attr("r", 5)
+          .attr("fill", (d) => (d.Doping ? colors.allegation : colors.clean))
+          .attr("data-xvalue", (d) => d.Year)
+          .attr("data-yvalue", (d) => d.raceTime.toISOString())
+          .attr("tabindex", 0)
+          .attr("aria-label", (d) => `${d.Year}, ${d.Time}, ${d.Name}`)
+          .on("mouseover focus", (event, d) => showTooltip(event, d))
+          .on("mousemove", (event, d) => positionTooltip(event, d))
+          .on("mouseout blur", hideTooltip);
+      }
+
+      function positionTooltip(event) {
+        const point = event.currentTarget;
+        const bounds = point.getBoundingClientRect();
+        const tip = tooltip.node().getBoundingClientRect();
+
+        tooltip
+          .style("left", `${Math.max(12, Math.min(bounds.right + 12, window.innerWidth - tip.width - 12))}px`)
+          .style("top", `${Math.max(12, Math.min(bounds.top + 12, window.innerHeight - tip.height - 12))}px`);
+      }
+
+      function showTooltip(event, d) {
+        tooltip
+          .html(
+            `<div class="tooltip-year">${d.Year} · ${d.Time}</div>
+             <div class="tooltip-name">${d.Name}</div>
+             <div class="tooltip-detail">${d.Nationality}${d.Doping ? ` · ${d.Doping}` : " · No doping allegation"}</div>`,
+          )
+          .attr("data-year", d.Year)
+          .attr("hidden", null);
+        positionTooltip(event, d);
+      }
+
+      function hideTooltip() {
+        tooltip.attr("hidden", true);
+      }
+
+      d3.json(DATA_URL)
+        .then((data) => {
+          data.forEach((d) => {
+            const [minutes, seconds] = d.Time.split(":").map(Number);
+            d.raceTime = new Date(Date.UTC(1970, 0, 1, 0, minutes, seconds));
+          });
+          renderChart(data);
+        })
+        .catch((error) => {
+          console.error("Unable to load the cycling data:", error);
+          d3.select(".chart-wrap")
+            .append("p")
+            .attr("role", "alert")
+            .style("padding", "24px")
+            .style("color", "#a3382a")
+            .text("The chart data could not be loaded. Please check your connection and refresh.");
+        });
+    </script>
+  </body>
+</html>
